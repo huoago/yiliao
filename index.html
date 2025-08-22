@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>轻约 · 前端版（本地存储，24小时自动删除）</title>
+  <meta name="description" content="纯前端交友示例站点：本地上传照片/视频，24小时自动删除，适合 GitHub Pages 部署。" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #121826;
+      --muted: #8a9aba;
+      --text: #e6edf7;
+      --accent: #6aa8ff;
+      --danger: #ff6b6b;
+      --ok: #4ade80;
+      --border: #263247;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }
+    a { color: var(--accent); text-decoration: none; }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(11,15,20,0.8); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:700; }
+    .brand svg { width:28px; height:28px; }
+    .main { display:grid; grid-template-columns: 320px 1fr; gap:16px; padding: 16px; }
+    @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border:1px solid var(--border); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .card .hd { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    .card .bd { padding: 16px; }
+    .muted { color: var(--muted); }
+    .hint { font-size: 12px; color: var(--muted); }
+    .input, select, button { width: 100%; padding: 10px 12px; border-radius: 12px; border:1px solid var(--border); background:#0f1725; color:var(--text); }
+    button { background: linear-gradient(90deg, #2b5fff, #7b9dff); border: none; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #0f1725; border:1px solid var(--border); }
+    button.danger { background: #2b0f15; border:1px solid #4c1f26; color:#ffb3b3; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .tile { position: relative; border:1px solid var(--border); border-radius: 14px; overflow: hidden; background:#0e1420; }
+    .tile:hover { outline: 2px solid #29436e; }
+    .tile .meta { position:absolute; bottom:0; left:0; right:0; padding:8px; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.6)); font-size:12px; display:flex; justify-content:space-between; gap:6px; align-items: end; }
+    .badge { background: rgba(0,0,0,0.5); padding:2px 8px; border-radius:999px; border:1px solid var(--border); }
+    .actions { display:flex; gap:8px; }
+    .row { display:flex; gap:10px; align-items:center; }
+    .row > * { flex:1; }
+    .drop { border: 2px dashed #33415c; border-radius: 16px; padding: 20px; text-align:center; }
+    .drop.drag { border-color: var(--accent); background: rgba(106,168,255,0.08); }
+    .preview-media { width: 100%; height: 220px; object-fit: cover; display:block; background:#0b0f14; }
+    .toolbar { display:flex; gap:10px; flex-wrap: wrap; }
+    .pill { padding: 6px 10px; border:1px solid var(--border); border-radius: 999px; background:#0f1725; font-size:12px; }
+    .footer { padding: 18px; text-align:center; color:var(--muted); }
+    .count { font-variant-numeric: tabular-nums; }
+    .switch { display:flex; gap:10px; align-items:center; font-size: 13px; }
+    .switch input { width: auto; }
+    .toast { position: fixed; right: 16px; bottom: 16px; background: #101827; border:1px solid var(--border); padding: 10px 12px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap row" style="justify-content: space-between;">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z"/>
+          <circle cx="12" cy="11" r="2.5"/>
+        </svg>
+        <span>轻约 · 本地版</span>
+      </div>
+      <div class="toolbar">
+        <span class="pill">纯前端 · GitHub Pages 可直接部署</span>
+        <span class="pill">私密：文件仅存于本机浏览器</span>
+        <span class="pill">自动过期：24小时删除</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap main">
+    <section class="card">
+      <div class="hd">个人资料</div>
+      <div class="bd">
+        <div class="row">
+          <input class="input" id="nickname" placeholder="昵称（仅保存在本机）" />
+        </div>
+        <div class="row">
+          <select id="gender">
+            <option value="">性别（可选）</option>
+            <option>女</option>
+            <option>男</option>
+            <option>其他/保密</option>
+          </select>
+          <input class="input" id="city" placeholder="城市（可选）" />
+        </div>
+        <div class="row">
+          <button id="saveProfile">保存资料</button>
+          <button class="secondary" id="clearAll">清空所有本地数据</button>
+        </div>
+        <p class="hint">提示：该站点没有服务器，所有资料、照片/视频仅存储在你的浏览器中。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd">上传照片 / 视频（24小时后自动删除）</div>
+      <div class="bd">
+        <div id="drop" class="drop">
+          <p class="muted">拖拽文件到此处，或点击选择（支持 image/*、video/*）</p>
+          <input id="fileInput" type="file" multiple accept="image/*,video/*" />
+          <div class="switch" style="margin-top:8px">
+            <input id="ttlToggle" type="checkbox" checked />
+            <label for="ttlToggle">自动删除（24小时）</label>
+          </div>
+        </div>
+        <p class="hint">我们会记录每个文件的过期时间，在到期时自动清理。你也可以手动删除。</p>
+      </div>
+    </section>
+
+    <section class="card" style="grid-column: 1 / -1;">
+      <div class="hd">我的相册（<span id="count" class="count">0</span>）</div>
+      <div class="bd">
+        <div class="row" style="margin-bottom:10px;">
+          <input class="input" id="search" placeholder="搜索文件名…" />
+          <select id="typeFilter">
+            <option value="">全部类型</option>
+            <option value="image">仅图片</option>
+            <option value="video">仅视频</option>
+          </select>
+          <button class="secondary" id="cleanup">立即清理过期文件</button>
+        </div>
+        <div id="grid" class="grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer">
+    MIT Licensed · 纯前端演示 · <a href="https://pages.github.com/" target="_blank" rel="noreferrer">一键部署到 GitHub Pages</a>
+  </div>
+
+  <div id="toast" class="toast" style="display:none;"></div>
+
+  <script>
+  // --- 简易 IndexedDB 存取封装 ---
+  const DB_NAME = "lite-dating";
+  const DB_VER = 1;
+  const STORE_MEDIA = "media";
+  const STORE_PROFILE = "profile";
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = (e) => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_MEDIA)) {
+          const s = db.createObjectStore(STORE_MEDIA, { keyPath: "id" });
+          s.createIndex("expiresAt", "expiresAt");
+          s.createIndex("createdAt", "createdAt");
+          s.createIndex("type", "type");
+          s.createIndex("name", "name");
+        }
+        if (!db.objectStoreNames.contains(STORE_PROFILE)) {
+          db.createObjectStore(STORE_PROFILE, { keyPath: "key" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function tx(store, mode, runner) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction(store, mode);
+      const s = t.objectStore(store);
+      const req = runner(s);
+      t.oncomplete = () => resolve(req?.result);
+      t.onerror = () => reject(t.error);
+    });
+  }
+
+  const Media = {
+    async add(record) {
+      return tx(STORE_MEDIA, "readwrite", (s) => s.add(record));
+    },
+    async put(record) {
+      return tx(STORE_MEDIA, "readwrite", (s) => s.put(record));
+    },
+    async getAll() {
+      return tx(STORE_MEDIA, "readonly", (s) => s.getAll());
+    },
+    async delete(id) {
+      return tx(STORE_MEDIA, "readwrite", (s) => s.delete(id));
+    },
+    async deleteExpired(now = Date.now()) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const t = db.transaction(STORE_MEDIA, "readwrite");
+        const s = t.objectStore(STORE_MEDIA);
+        const idx = s.index("expiresAt");
+        const range = IDBKeyRange.upperBound(now);
+        const toDelete = [];
+        idx.openCursor(range).onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            toDelete.push(cursor.primaryKey);
+            cursor.continue();
+          }
+        };
+        t.oncomplete = async () => {
+          for (const id of toDelete) await Media.delete(id);
+          resolve(toDelete.length);
+        };
+        t.onerror = () => reject(t.error);
+      });
+    },
+  };
+
+  const Profile = {
+    async save(data) {
+      return tx(STORE_PROFILE, "readwrite", (s) => {
+        s.put({ key: "nickname", value: data.nickname || "" });
+        s.put({ key: "gender", value: data.gender || "" });
+        s.put({ key: "city", value: data.city || "" });
+      });
+    },
+    async load() {
+      const db = await openDB();
+      return new Promise((resolve) => {
+        const t = db.transaction(STORE_PROFILE, "readonly");
+        const s = t.objectStore(STORE_PROFILE);
+        const out = { nickname: "", gender: "", city: "" };
+        s.get("nickname").onsuccess = (e) => out.nickname = e.target.result?.value || "";
+        s.get("gender").onsuccess = (e) => out.gender = e.target.result?.value || "";
+        s.get("city").onsuccess = (e) => out.city = e.target.result?.value || "";
+        t.oncomplete = () => resolve(out);
+      });
+    },
+    async clearAll() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const t1 = db.transaction(STORE_PROFILE, "readwrite");
+        t1.objectStore(STORE_PROFILE).clear();
+        const t2 = db.transaction(STORE_MEDIA, "readwrite");
+        t2.objectStore(STORE_MEDIA).clear();
+        let done = 0;
+        function check() { if (++done === 2) resolve(); }
+        t1.oncomplete = check; t2.oncomplete = check;
+        t1.onerror = t2.onerror = (e) => reject(e);
+      });
+    }
+  };
+
+  // --- UI 逻辑 ---
+  const $ = (sel) => document.querySelector(sel);
+  const grid = $("#grid");
+  const countEl = $("#count");
+  const searchEl = $("#search");
+  const typeFilterEl = $("#typeFilter");
+  const toastEl = $("#toast");
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.style.display = "block";
+    setTimeout(() => { toastEl.style.display = "none"; }, 2200);
+  }
+
+  function humanSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    const units = ["KB","MB","GB","TB"];
+    let i = -1;
+    do { bytes /= 1024; i++; } while (bytes >= 1024 && i < units.length-1);
+    return bytes.toFixed(1) + " " + units[i];
+  }
+
+  function timeLeft(expiresAt) {
+    const left = expiresAt - Date.now();
+    if (left <= 0) return "已过期";
+    const h = Math.floor(left / 3600000);
+    const m = Math.floor((left % 3600000) / 60000);
+    const s = Math.floor((left % 60000) / 1000);
+    return `${h}小时${m}分${s}秒`;
+  }
+
+  function mimeFamily(type) {
+    return type.startsWith("image/") ? "image" : type.startsWith("video/") ? "video" : "other";
+  }
+
+  async function render() {
+    const all = await Media.getAll();
+    const q = (searchEl.value || "").toLowerCase().trim();
+    const t = typeFilterEl.value;
+
+    const filtered = all
+      .sort((a,b) => b.createdAt - a.createdAt)
+      .filter((x) => (q ? x.name.toLowerCase().includes(q) : true))
+      .filter((x) => (t ? mimeFamily(x.type) === t : true));
+
+    countEl.textContent = filtered.length.toString();
+    grid.innerHTML = "";
+
+    for (const item of filtered) {
+      const url = URL.createObjectURL(item.blob);
+      const family = mimeFamily(item.type);
+      const el = document.createElement("div");
+      el.className = "tile";
+
+      if (family === "image") {
+        const img = document.createElement("img");
+        img.className = "preview-media";
+        img.src = url;
+        img.alt = item.name;
+        el.appendChild(img);
+      } else if (family === "video") {
+        const v = document.createElement("video");
+        v.className = "preview-media";
+        v.src = url;
+        v.controls = true;
+        el.appendChild(v);
+      } else {
+        const p = document.createElement("div");
+        p.className = "preview-media";
+        p.style.display = "grid";
+        p.style.placeItems = "center";
+        p.textContent = "不支持的类型";
+        el.appendChild(p);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const left = document.createElement("span");
+      left.className = "badge";
+      left.textContent = item.name;
+      const right = document.createElement("div");
+      right.className = "actions";
+
+      const ttl = document.createElement("span");
+      ttl.className = "badge";
+      ttl.title = "到期后将自动删除";
+      function updateTTL() { ttl.textContent = timeLeft(item.expiresAt); }
+      updateTTL();
+      setInterval(updateTTL, 1000);
+
+      const size = document.createElement("span");
+      size.className = "badge";
+      size.textContent = humanSize(item.size);
+
+      const del = document.createElement("button");
+      del.className = "danger";
+      del.textContent = "删除";
+      del.onclick = async () => {
+        await Media.delete(item.id);
+        toast("已删除");
+        render();
+      };
+
+      right.append(ttl, size, del);
+      meta.append(left, right);
+      el.appendChild(meta);
+      grid.appendChild(el);
+    }
+  }
+
+  async function handleFiles(files) {
+    const autoTTL = $("#ttlToggle").checked;
+    let added = 0;
+    for (const f of files) {
+      if (!(f.type.startsWith("image/") || f.type.startsWith("video/"))) continue;
+      const id = crypto.randomUUID();
+      const createdAt = Date.now();
+      const record = {
+        id,
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        createdAt,
+        expiresAt: autoTTL ? createdAt + DAY_MS : Number.MAX_SAFE_INTEGER,
+        blob: f
+      };
+      await Media.add(record);
+      added++;
+    }
+    if (added) { toast(`已添加 ${added} 个文件`); render(); }
+  }
+
+  // 清理流程：启动时 & 每分钟
+  async function cleanupNow() {
+    const n = await Media.deleteExpired(Date.now());
+    if (n > 0) { toast(`已清理过期文件 ${n} 个`); render(); }
+  }
+  setInterval(cleanupNow, 60 * 1000);
+
+  // 绑定交互
+  (async function init() {
+    // 载入资料
+    const pf = await Profile.load();
+    $("#nickname").value = pf.nickname || "";
+    $("#gender").value = pf.gender || "";
+    $("#city").value = pf.city || "";
+
+    $("#saveProfile").onclick = async () => {
+      await Profile.save({
+        nickname: $("#nickname").value.trim(),
+        gender: $("#gender").value,
+        city: $("#city").value.trim()
+      });
+      toast("资料已保存（保存在本机）");
+    };
+    $("#clearAll").onclick = async () => {
+      if (!confirm("确定清空本地的资料与所有媒体文件吗？此操作不可恢复。")) return;
+      await Profile.clearAll();
+      toast("已清空");
+      render();
+    };
+
+    const drop = $("#drop");
+    const fileInput = $("#fileInput");
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+    drop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      drop.classList.remove("drag");
+      const files = e.dataTransfer.files;
+      handleFiles(files);
+    });
+    fileInput.onchange = (e) => handleFiles(fileInput.files);
+
+    searchEl.oninput = render;
+    typeFilterEl.onchange = render;
+    $("#cleanup").onclick = cleanupNow;
+
+    // 首次进入即清理一次已过期条目
+    await cleanupNow();
+    await render();
+  })();
+  </script>
+</body>
+</html>
