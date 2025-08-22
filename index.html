@@ -1,166 +1,137 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>轻约 · 前端版（本地存储，24小时自动删除）</title>
-  <meta name="description" content="纯前端交友示例站点：本地上传照片/视频，24小时自动删除，适合 GitHub Pages 部署。" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>轻约 · Supabase 多人可见 Demo</title>
+  <meta name="description" content="前端示例：支持本地 IndexedDB 存储或上传到 Supabase Storage（多人可见），并配合后端定时清理 24 小时过期文件。" />
   <style>
-    :root {
-      --bg: #0b0f14;
-      --card: #121826;
-      --muted: #8a9aba;
-      --text: #e6edf7;
-      --accent: #6aa8ff;
-      --danger: #ff6b6b;
-      --ok: #4ade80;
-      --border: #263247;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }
-    a { color: var(--accent); text-decoration: none; }
-    header {
-      position: sticky; top: 0; z-index: 10;
-      background: rgba(11,15,20,0.8); backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border);
-    }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
-    .brand { display:flex; align-items:center; gap:10px; font-weight:700; }
-    .brand svg { width:28px; height:28px; }
-    .main { display:grid; grid-template-columns: 320px 1fr; gap:16px; padding: 16px; }
-    @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
-    .card { background: var(--card); border:1px solid var(--border); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-    .card .hd { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
-    .card .bd { padding: 16px; }
-    .muted { color: var(--muted); }
-    .hint { font-size: 12px; color: var(--muted); }
-    .input, select, button { width: 100%; padding: 10px 12px; border-radius: 12px; border:1px solid var(--border); background:#0f1725; color:var(--text); }
-    button { background: linear-gradient(90deg, #2b5fff, #7b9dff); border: none; font-weight: 600; cursor: pointer; }
-    button.secondary { background: #0f1725; border:1px solid var(--border); }
-    button.danger { background: #2b0f15; border:1px solid #4c1f26; color:#ffb3b3; }
-    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-    .tile { position: relative; border:1px solid var(--border); border-radius: 14px; overflow: hidden; background:#0e1420; }
-    .tile:hover { outline: 2px solid #29436e; }
-    .tile .meta { position:absolute; bottom:0; left:0; right:0; padding:8px; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.6)); font-size:12px; display:flex; justify-content:space-between; gap:6px; align-items: end; }
-    .badge { background: rgba(0,0,0,0.5); padding:2px 8px; border-radius:999px; border:1px solid var(--border); }
-    .actions { display:flex; gap:8px; }
-    .row { display:flex; gap:10px; align-items:center; }
-    .row > * { flex:1; }
-    .drop { border: 2px dashed #33415c; border-radius: 16px; padding: 20px; text-align:center; }
-    .drop.drag { border-color: var(--accent); background: rgba(106,168,255,0.08); }
-    .preview-media { width: 100%; height: 220px; object-fit: cover; display:block; background:#0b0f14; }
-    .toolbar { display:flex; gap:10px; flex-wrap: wrap; }
-    .pill { padding: 6px 10px; border:1px solid var(--border); border-radius: 999px; background:#0f1725; font-size:12px; }
-    .footer { padding: 18px; text-align:center; color:var(--muted); }
-    .count { font-variant-numeric: tabular-nums; }
-    .switch { display:flex; gap:10px; align-items:center; font-size: 13px; }
-    .switch input { width: auto; }
-    .toast { position: fixed; right: 16px; bottom: 16px; background: #101827; border:1px solid var(--border); padding: 10px 12px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    /* simple styles (from previous demo) */
+    :root{--bg:#0b0f14;--card:#121826;--muted:#8a9aba;--text:#e6edf7;--accent:#6aa8ff;--border:#263247}
+    *{box-sizing:border-box}html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,"PingFang SC",sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px}
+    header{padding:12px 0}
+    .brand{display:flex;gap:10px;align-items:center;font-weight:700}
+    .main{display:grid;grid-template-columns:320px 1fr;gap:16px}
+    @media(max-width:900px){.main{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:600}
+    .bd{padding:12px}
+    .input,select,button{width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:#0f1725;color:var(--text)}
+    .row{display:flex;gap:8px;align-items:center}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .tile{border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#0d1218}
+    .preview-media{width:100%;height:200px;object-fit:cover;background:#000;display:block}
+    .meta{padding:8px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid var(--border);font-size:12px;background:#0f1725}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .hint{font-size:13px;color:var(--muted);margin-top:8px}
+    .footer{text-align:center;padding:14px;color:var(--muted)}
+    .danger{background:#2b0f15;color:#ffb3b3;border:none;padding:6px 10px;border-radius:8px;cursor:pointer}
   </style>
 </head>
 <body>
-  <header>
-    <div class="wrap row" style="justify-content: space-between;">
-      <div class="brand">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z"/>
-          <circle cx="12" cy="11" r="2.5"/>
-        </svg>
-        <span>轻约 · 本地版</span>
-      </div>
-      <div class="toolbar">
-        <span class="pill">纯前端 · GitHub Pages 可直接部署</span>
-        <span class="pill">私密：文件仅存于本机浏览器</span>
-        <span class="pill">自动过期：24小时删除</span>
-      </div>
+  <header class="wrap">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-7-10a7 7 0 0 1 14 0c0 5.65-7 10-7 10z" stroke="currentColor" stroke-width="1.2"/></svg>
+      <div>轻约 · Supabase 版（演示）</div>
     </div>
   </header>
 
-  <main class="wrap main">
+  <main class="wrap main" style="margin-top:8px">
     <section class="card">
-      <div class="hd">个人资料</div>
+      <div class="hd">配置与资料</div>
       <div class="bd">
-        <div class="row">
-          <input class="input" id="nickname" placeholder="昵称（仅保存在本机）" />
+        <div class="hint">下方“多人可见”开关开启时会把文件上传至 Supabase（需提供 Supabase URL 与 Public ANON Key）。</div>
+        <div style="height:8px"></div>
+        <div class="row" style="align-items:center;">
+          <label class="pill" style="margin-right:8px"><input id="supaToggle" type="checkbox" style="margin-right:6px"> 开启 Supabase（多人可见）</label>
         </div>
-        <div class="row">
-          <select id="gender">
-            <option value="">性别（可选）</option>
-            <option>女</option>
-            <option>男</option>
-            <option>其他/保密</option>
-          </select>
-          <input class="input" id="city" placeholder="城市（可选）" />
+        <div style="height:10px"></div>
+        <div id="supaConfig" style="display:none">
+          <div style="margin-bottom:8px"><input id="supabaseUrl" class="input" placeholder="Supabase URL 示例: https://xyz.supabase.co" /></div>
+          <div style="margin-bottom:8px"><input id="supabaseAnon" class="input" placeholder="Supabase ANON PUBLIC KEY（仅浏览器）" /></div>
+          <div class="hint">注意：不要把 service_role key 放到前端。后端定时清理需要 service_role key（见 README）。</div>
         </div>
-        <div class="row">
-          <button id="saveProfile">保存资料</button>
-          <button class="secondary" id="clearAll">清空所有本地数据</button>
+
+        <div style="height:10px"></div>
+        <div class="row" style="gap:10px">
+          <input id="nickname" class="input" placeholder="昵称（仅保存在本机）" />
+          <select id="gender"><option value="">性别（可选）</option><option>女</option><option>男</option><option>保密</option></select>
         </div>
-        <p class="hint">提示：该站点没有服务器，所有资料、照片/视频仅存储在你的浏览器中。</p>
+        <div style="height:8px"></div>
+        <div class="row">
+          <input id="city" class="input" placeholder="城市（可选）" />
+        </div>
+        <div style="height:8px"></div>
+        <div class="row">
+          <button id="saveProfile">保存资料（本机）</button>
+          <button id="clearAll" class="danger">清空本地数据</button>
+        </div>
       </div>
     </section>
 
     <section class="card">
-      <div class="hd">上传照片 / 视频（24小时后自动删除）</div>
+      <div class="hd">上传照片 / 视频</div>
       <div class="bd">
-        <div id="drop" class="drop">
-          <p class="muted">拖拽文件到此处，或点击选择（支持 image/*、video/*）</p>
+        <div id="drop" style="border:2px dashed #34495e;border-radius:12px;padding:16px;text-align:center">
+          <div class="hint">拖拽或点击选择文件（image/* 或 video/*）。如果启用 Supabase，会上传至 <code>public-media</code> bucket 并写入 <code>media_meta</code> 表。</div>
+          <div style="height:6px"></div>
           <input id="fileInput" type="file" multiple accept="image/*,video/*" />
-          <div class="switch" style="margin-top:8px">
-            <input id="ttlToggle" type="checkbox" checked />
-            <label for="ttlToggle">自动删除（24小时）</label>
-          </div>
+          <div style="height:8px"></div>
+          <label><input id="ttlToggle" type="checkbox" checked /> 自动删除（24 小时）</label>
         </div>
-        <p class="hint">我们会记录每个文件的过期时间，在到期时自动清理。你也可以手动删除。</p>
       </div>
     </section>
 
-    <section class="card" style="grid-column: 1 / -1;">
-      <div class="hd">我的相册（<span id="count" class="count">0</span>）</div>
+    <section class="card" style="grid-column:1 / -1">
+      <div class="hd">媒体库（<span id="count">0</span>）</div>
       <div class="bd">
-        <div class="row" style="margin-bottom:10px;">
-          <input class="input" id="search" placeholder="搜索文件名…" />
-          <select id="typeFilter">
-            <option value="">全部类型</option>
-            <option value="image">仅图片</option>
-            <option value="video">仅视频</option>
-          </select>
-          <button class="secondary" id="cleanup">立即清理过期文件</button>
+        <div class="row" style="margin-bottom:8px">
+          <input id="search" class="input" placeholder="搜索文件名…" />
+          <select id="typeFilter"><option value="">全部</option><option value="image">仅图片</option><option value="video">仅视频</option></select>
+          <button id="cleanup" class="input">立即清理过期</button>
         </div>
         <div id="grid" class="grid"></div>
       </div>
     </section>
   </main>
 
-  <div class="footer">
-    MIT Licensed · 纯前端演示 · <a href="https://pages.github.com/" target="_blank" rel="noreferrer">一键部署到 GitHub Pages</a>
-  </div>
+  <div class="footer wrap">README 和部署说明见仓库（包含 Supabase SQL 与 GitHub Actions 配置）</div>
 
-  <div id="toast" class="toast" style="display:none;"></div>
+  <div id="toast" style="display:none;position:fixed;right:16px;bottom:16px;padding:10px 14px;border-radius:10px;background:#0f1725;border:1px solid var(--border)"></div>
+
+  <!-- Supabase 客户端（UMD） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-  // --- 简易 IndexedDB 存取封装 ---
+  // --- Helpers ---
+  const $ = (s) => document.querySelector(s);
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  function showToast(text) {
+    const t = $("#toast");
+    t.textContent = text;
+    t.style.display = "block";
+    setTimeout(()=> t.style.display = "none", 2500);
+  }
+
+  // --- IndexedDB local store (keeps previous local behavior) ---
   const DB_NAME = "lite-dating";
-  const DB_VER = 1;
   const STORE_MEDIA = "media";
   const STORE_PROFILE = "profile";
-  const DAY_MS = 24 * 60 * 60 * 1000;
 
   function openDB() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VER);
-      req.onupgradeneeded = (e) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(STORE_MEDIA)) {
           const s = db.createObjectStore(STORE_MEDIA, { keyPath: "id" });
           s.createIndex("expiresAt", "expiresAt");
           s.createIndex("createdAt", "createdAt");
-          s.createIndex("type", "type");
-          s.createIndex("name", "name");
         }
-        if (!db.objectStoreNames.contains(STORE_PROFILE)) {
-          db.createObjectStore(STORE_PROFILE, { keyPath: "key" });
-        }
+        if (!db.objectStoreNames.contains(STORE_PROFILE)) db.createObjectStore(STORE_PROFILE, { keyPath: "key" });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -178,19 +149,11 @@
     });
   }
 
-  const Media = {
-    async add(record) {
-      return tx(STORE_MEDIA, "readwrite", (s) => s.add(record));
-    },
-    async put(record) {
-      return tx(STORE_MEDIA, "readwrite", (s) => s.put(record));
-    },
-    async getAll() {
-      return tx(STORE_MEDIA, "readonly", (s) => s.getAll());
-    },
-    async delete(id) {
-      return tx(STORE_MEDIA, "readwrite", (s) => s.delete(id));
-    },
+  const Local = {
+    async add(record) { return tx(STORE_MEDIA, "readwrite", s => s.add(record)); },
+    async put(record) { return tx(STORE_MEDIA, "readwrite", s => s.put(record)); },
+    async getAll() { return tx(STORE_MEDIA, "readonly", s => s.getAll()); },
+    async delete(id) { return tx(STORE_MEDIA, "readwrite", s => s.delete(id)); },
     async deleteExpired(now = Date.now()) {
       const db = await openDB();
       return new Promise((resolve, reject) => {
@@ -200,24 +163,18 @@
         const range = IDBKeyRange.upperBound(now);
         const toDelete = [];
         idx.openCursor(range).onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            toDelete.push(cursor.primaryKey);
-            cursor.continue();
-          }
+          const cur = e.target.result;
+          if (cur) { toDelete.push(cur.primaryKey); cur.continue(); }
         };
-        t.oncomplete = async () => {
-          for (const id of toDelete) await Media.delete(id);
-          resolve(toDelete.length);
-        };
+        t.oncomplete = async () => { for (const id of toDelete) await Local.delete(id); resolve(toDelete.length); };
         t.onerror = () => reject(t.error);
       });
-    },
+    }
   };
 
   const Profile = {
     async save(data) {
-      return tx(STORE_PROFILE, "readwrite", (s) => {
+      return tx(STORE_PROFILE, "readwrite", s => {
         s.put({ key: "nickname", value: data.nickname || "" });
         s.put({ key: "gender", value: data.gender || "" });
         s.put({ key: "city", value: data.city || "" });
@@ -228,209 +185,233 @@
       return new Promise((resolve) => {
         const t = db.transaction(STORE_PROFILE, "readonly");
         const s = t.objectStore(STORE_PROFILE);
-        const out = { nickname: "", gender: "", city: "" };
-        s.get("nickname").onsuccess = (e) => out.nickname = e.target.result?.value || "";
-        s.get("gender").onsuccess = (e) => out.gender = e.target.result?.value || "";
-        s.get("city").onsuccess = (e) => out.city = e.target.result?.value || "";
+        const out = { nickname:"", gender:"", city:"" };
+        s.get("nickname").onsuccess = e => out.nickname = e.target.result?.value || "";
+        s.get("gender").onsuccess = e => out.gender = e.target.result?.value || "";
+        s.get("city").onsuccess = e => out.city = e.target.result?.value || "";
         t.oncomplete = () => resolve(out);
       });
     },
     async clearAll() {
       const db = await openDB();
       return new Promise((resolve, reject) => {
-        const t1 = db.transaction(STORE_PROFILE, "readwrite");
-        t1.objectStore(STORE_PROFILE).clear();
-        const t2 = db.transaction(STORE_MEDIA, "readwrite");
-        t2.objectStore(STORE_MEDIA).clear();
-        let done = 0;
-        function check() { if (++done === 2) resolve(); }
+        const t1 = db.transaction(STORE_PROFILE, "readwrite"); t1.objectStore(STORE_PROFILE).clear();
+        const t2 = db.transaction(STORE_MEDIA, "readwrite"); t2.objectStore(STORE_MEDIA).clear();
+        let done=0; function check(){ if(++done===2) resolve(); }
         t1.oncomplete = check; t2.oncomplete = check;
-        t1.onerror = t2.onerror = (e) => reject(e);
+        t1.onerror = t2.onerror = e => reject(e);
       });
     }
   };
 
-  // --- UI 逻辑 ---
-  const $ = (sel) => document.querySelector(sel);
+  // --- Supabase client (created on demand) ---
+  let supabaseClient = null;
+  function initSupabaseFromUI() {
+    try {
+      const { createClient } = supabase; // global provided by UMD script
+      const url = $("#supabaseUrl").value.trim();
+      const anon = $("#supabaseAnon").value.trim();
+      if (!url || !anon) throw new Error("请填写 Supabase URL 与 ANON KEY");
+      supabaseClient = createClient(url, anon);
+    } catch (e) {
+      supabaseClient = null;
+      throw e;
+    }
+  }
+
+  // --- UI / render ---
   const grid = $("#grid");
   const countEl = $("#count");
   const searchEl = $("#search");
   const typeFilterEl = $("#typeFilter");
-  const toastEl = $("#toast");
 
-  function toast(msg) {
-    toastEl.textContent = msg;
-    toastEl.style.display = "block";
-    setTimeout(() => { toastEl.style.display = "none"; }, 2200);
-  }
+  function mimeFamily(type){ if (!type) return "other"; if (type.startsWith("image/")) return "image"; if (type.startsWith("video/")) return "video"; return "other"; }
+  function humanSize(bytes){ if (!bytes) return "-"; if (bytes < 1024) return bytes + " B"; const units=["KB","MB","GB"]; let i=-1; do{ bytes/=1024; i++; } while(bytes>=1024 && i<units.length-1); return bytes.toFixed(1)+" "+units[i]; }
+  function timeLeftISO(iso){ const left = new Date(iso).getTime() - Date.now(); if (left<=0) return "已过期"; const h = Math.floor(left/3600000), m = Math.floor((left%3600000)/60000), s = Math.floor((left%60000)/1000); return `${h}时${m}分${s}秒`; }
 
-  function humanSize(bytes) {
-    if (bytes < 1024) return bytes + " B";
-    const units = ["KB","MB","GB","TB"];
-    let i = -1;
-    do { bytes /= 1024; i++; } while (bytes >= 1024 && i < units.length-1);
-    return bytes.toFixed(1) + " " + units[i];
-  }
-
-  function timeLeft(expiresAt) {
-    const left = expiresAt - Date.now();
-    if (left <= 0) return "已过期";
-    const h = Math.floor(left / 3600000);
-    const m = Math.floor((left % 3600000) / 60000);
-    const s = Math.floor((left % 60000) / 1000);
-    return `${h}小时${m}分${s}秒`;
-  }
-
-  function mimeFamily(type) {
-    return type.startsWith("image/") ? "image" : type.startsWith("video/") ? "video" : "other";
-  }
-
-  async function render() {
-    const all = await Media.getAll();
+  async function renderLocal() {
+    const all = await Local.getAll();
     const q = (searchEl.value || "").toLowerCase().trim();
     const t = typeFilterEl.value;
-
-    const filtered = all
-      .sort((a,b) => b.createdAt - a.createdAt)
-      .filter((x) => (q ? x.name.toLowerCase().includes(q) : true))
-      .filter((x) => (t ? mimeFamily(x.type) === t : true));
-
-    countEl.textContent = filtered.length.toString();
+    const filtered = all.sort((a,b)=>b.createdAt - a.createdAt).filter(x => q ? x.name.toLowerCase().includes(q) : true).filter(x => t ? mimeFamily(x.type)===t : true);
+    countEl.textContent = filtered.length;
     grid.innerHTML = "";
-
     for (const item of filtered) {
       const url = URL.createObjectURL(item.blob);
-      const family = mimeFamily(item.type);
-      const el = document.createElement("div");
-      el.className = "tile";
-
-      if (family === "image") {
-        const img = document.createElement("img");
-        img.className = "preview-media";
-        img.src = url;
-        img.alt = item.name;
-        el.appendChild(img);
-      } else if (family === "video") {
-        const v = document.createElement("video");
-        v.className = "preview-media";
-        v.src = url;
-        v.controls = true;
-        el.appendChild(v);
-      } else {
-        const p = document.createElement("div");
-        p.className = "preview-media";
-        p.style.display = "grid";
-        p.style.placeItems = "center";
-        p.textContent = "不支持的类型";
-        el.appendChild(p);
-      }
-
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      const left = document.createElement("span");
-      left.className = "badge";
-      left.textContent = item.name;
-      const right = document.createElement("div");
-      right.className = "actions";
-
-      const ttl = document.createElement("span");
-      ttl.className = "badge";
-      ttl.title = "到期后将自动删除";
-      function updateTTL() { ttl.textContent = timeLeft(item.expiresAt); }
-      updateTTL();
-      setInterval(updateTTL, 1000);
-
-      const size = document.createElement("span");
-      size.className = "badge";
-      size.textContent = humanSize(item.size);
-
-      const del = document.createElement("button");
-      del.className = "danger";
-      del.textContent = "删除";
-      del.onclick = async () => {
-        await Media.delete(item.id);
-        toast("已删除");
-        render();
-      };
-
-      right.append(ttl, size, del);
-      meta.append(left, right);
-      el.appendChild(meta);
-      grid.appendChild(el);
+      const tile = document.createElement("div"); tile.className="tile";
+      if (mimeFamily(item.type)==="image"){ const img=document.createElement("img"); img.className="preview-media"; img.src=url; img.alt=item.name; tile.appendChild(img); }
+      else if (mimeFamily(item.type)==="video"){ const v=document.createElement("video"); v.className="preview-media"; v.src=url; v.controls=true; tile.appendChild(v); }
+      else { const p=document.createElement("div"); p.className="preview-media"; p.style.display="grid"; p.style.placeItems="center"; p.textContent="不支持"; tile.appendChild(p); }
+      const meta=document.createElement("div"); meta.className="meta";
+      const left=document.createElement("div"); left.textContent=item.name;
+      const right=document.createElement("div"); right.style.display="flex"; right.style.gap="8px"; const ttl=document.createElement("span"); ttl.textContent=timeLeftISO(new Date(item.expiresAt).toISOString()); setInterval(()=> ttl.textContent=timeLeftISO(new Date(item.expiresAt).toISOString()),1000);
+      const size=document.createElement("span"); size.textContent=humanSize(item.size);
+      const del=document.createElement("button"); del.className="danger"; del.textContent="删除"; del.onclick = async ()=>{ await Local.delete(item.id); showToast('已删除'); renderCurrent(); };
+      right.append(ttl,size,del); meta.append(left,right); tile.appendChild(meta); grid.appendChild(tile);
     }
+  }
+
+  async function renderSupabase() {
+    if (!supabaseClient) { grid.innerHTML = '<div class="hint">请先在上方填写 Supabase 配置并启用。</div>'; return; }
+    const q = (searchEl.value || "").toLowerCase().trim();
+    const t = typeFilterEl.value;
+    const nowISO = new Date().toISOString();
+    // fetch visible (not expired)
+    let { data, error } = await supabaseClient.from('media_meta').select('*').gt('expires_at', nowISO).order('created_at',{ascending:false}).limit(1000);
+    if (error) { grid.innerHTML='<div class="hint">读取失败：'+error.message+'</div>'; return; }
+    // apply client-side filtering
+    data = data.filter(x => q ? (x.file_name || "").toLowerCase().includes(q) : true).filter(x => t ? (x.content_type && x.content_type.startsWith(t+'/')) : true);
+    countEl.textContent = data.length;
+    grid.innerHTML = "";
+    for (const row of data) {
+      let publicUrl = '';
+      try {
+        const { data: d } = supabaseClient.storage.from('public-media').getPublicUrl(row.storage_path);
+        publicUrl = d?.publicUrl || '';
+      } catch(e){ publicUrl = ''; }
+      const tile = document.createElement("div"); tile.className="tile";
+      if ((row.content_type||'').startsWith('image/')){
+        const img=document.createElement("img"); img.className="preview-media"; img.src = publicUrl; img.alt = row.file_name; tile.appendChild(img);
+      } else if ((row.content_type||'').startsWith('video/')){
+        const v=document.createElement("video"); v.className="preview-media"; v.src = publicUrl; v.controls=true; tile.appendChild(v);
+      } else {
+        const p=document.createElement("div"); p.className="preview-media"; p.style.display='grid'; p.style.placeItems='center'; p.textContent='不支持'; tile.appendChild(p);
+      }
+      const meta=document.createElement("div"); meta.className="meta";
+      const left=document.createElement("div"); left.textContent = row.file_name;
+      const right=document.createElement("div"); right.style.display='flex'; right.style.gap='8px';
+      const ttl=document.createElement("span"); ttl.textContent = timeLeftISO(row.expires_at); setInterval(()=> ttl.textContent = timeLeftISO(row.expires_at),1000);
+      const size=document.createElement("span"); size.textContent = humanSize(row.size);
+      const del=document.createElement("button"); del.className="danger"; del.textContent="删除"; del.onclick = async ()=> {
+        if (!confirm('确认删除该文件？')) return;
+        // delete from storage and metadata
+        const { error: e1 } = await supabaseClient.storage.from('public-media').remove([row.storage_path]);
+        if (e1) { showToast('删除 storage 失败: '+e1.message); return; }
+        const { error: e2 } = await supabaseClient.from('media_meta').delete().eq('id', row.id);
+        if (e2) showToast('删除 meta 失败: '+e2.message); else showToast('已删除');
+        renderCurrent();
+      };
+      right.append(ttl,size,del); meta.append(left,right); tile.appendChild(meta); grid.appendChild(tile);
+    }
+  }
+
+  async function renderCurrent() {
+    if ($("#supaToggle").checked) await renderSupabase();
+    else await renderLocal();
+  }
+
+  // --- Uploading ---
+  async function uploadToSupabase(file, uploaderName, ttlHours=24) {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (ttlHours * 3600 * 1000)).toISOString();
+    const datePart = now.toISOString().slice(0,10);
+    const path = `uploads/${datePart}/${crypto.randomUUID()}_${file.name}`;
+    // upload
+    const { data: uploadData, error: uploadErr } = await supabaseClient.storage.from('public-media').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+    if (uploadErr) throw uploadErr;
+    // insert metadata
+    const { data: metaData, error: metaErr } = await supabaseClient.from('media_meta').insert([{
+      storage_path: uploadData.path,
+      file_name: file.name,
+      content_type: file.type,
+      size: file.size,
+      uploader: uploaderName || null,
+      created_at: now.toISOString(),
+      expires_at: expiresAt
+    }]);
+    if (metaErr) {
+      // best-effort: try removing uploaded file to avoid orphan
+      try { await supabaseClient.storage.from('public-media').remove([uploadData.path]); } catch(e){}
+      throw metaErr;
+    }
+    return metaData?.[0] ?? null;
   }
 
   async function handleFiles(files) {
+    const useSupabase = $("#supaToggle").checked;
     const autoTTL = $("#ttlToggle").checked;
+    const nickname = $("#nickname").value.trim();
     let added = 0;
     for (const f of files) {
-      if (!(f.type.startsWith("image/") || f.type.startsWith("video/"))) continue;
-      const id = crypto.randomUUID();
-      const createdAt = Date.now();
-      const record = {
-        id,
-        name: f.name,
-        type: f.type,
-        size: f.size,
-        createdAt,
-        expiresAt: autoTTL ? createdAt + DAY_MS : Number.MAX_SAFE_INTEGER,
-        blob: f
-      };
-      await Media.add(record);
-      added++;
+      if (!(f.type.startsWith('image/') || f.type.startsWith('video/'))) continue;
+      if (useSupabase) {
+        try {
+          if (!supabaseClient) initSupabaseFromUI();
+        } catch(e){ showToast('Supabase 初始化失败: '+e.message); return; }
+        try {
+          const meta = await uploadToSupabase(f, nickname || null, autoTTL ? 24 : 0);
+          if (meta) added++;
+        } catch(e){ console.error(e); showToast('上传失败: '+(e.message||e)); }
+      } else {
+        const id = crypto.randomUUID();
+        const createdAt = Date.now();
+        const rec = { id, name: f.name, type: f.type, size: f.size, createdAt, expiresAt: autoTTL ? createdAt + DAY_MS : Number.MAX_SAFE_INTEGER, blob: f };
+        await Local.add(rec);
+        added++;
+      }
     }
-    if (added) { toast(`已添加 ${added} 个文件`); render(); }
+    if (added) { showToast(`已添加 ${added} 个文件`); renderCurrent(); }
   }
 
-  // 清理流程：启动时 & 每分钟
-  async function cleanupNow() {
-    const n = await Media.deleteExpired(Date.now());
-    if (n > 0) { toast(`已清理过期文件 ${n} 个`); render(); }
+  // --- cleanup for Supabase (manual) ---
+  async function cleanupSupabaseNow() {
+    if (!supabaseClient) { try { initSupabaseFromUI(); } catch(e){ showToast('Supabase 初始化失败: '+e.message); return; } }
+    const nowISO = new Date().toISOString();
+    // list expired (page)
+    const step = 500;
+    let from = 0;
+    let totalDeleted = 0;
+    while (true) {
+      const { data, error } = await supabaseClient.from('media_meta').select('id,storage_path').lte('expires_at', nowISO).order('created_at',{ascending:true}).range(from, from+step-1);
+      if (error) { showToast('清理查询失败: '+error.message); return; }
+      if (!data || data.length===0) break;
+      const paths = data.map(r => r.storage_path);
+      // delete from storage in batches (supabase accepts array)
+      const { error: delErr } = await supabaseClient.storage.from('public-media').remove(paths);
+      if (delErr) console.error('remove error', delErr);
+      // delete meta rows
+      for (const r of data) {
+        const { error: metaErr } = await supabaseClient.from('media_meta').delete().eq('id', r.id);
+        if (metaErr) console.error('meta delete err', metaErr);
+      }
+      totalDeleted += data.length;
+      if (data.length < step) break;
+      from += step;
+    }
+    showToast('已清理 ' + totalDeleted + ' 个过期文件（Supabase）');
+    renderCurrent();
   }
-  setInterval(cleanupNow, 60 * 1000);
 
-  // 绑定交互
+  // --- init & events ---
   (async function init() {
-    // 载入资料
+    // profile load
     const pf = await Profile.load();
     $("#nickname").value = pf.nickname || "";
     $("#gender").value = pf.gender || "";
     $("#city").value = pf.city || "";
 
-    $("#saveProfile").onclick = async () => {
-      await Profile.save({
-        nickname: $("#nickname").value.trim(),
-        gender: $("#gender").value,
-        city: $("#city").value.trim()
-      });
-      toast("资料已保存（保存在本机）");
-    };
-    $("#clearAll").onclick = async () => {
-      if (!confirm("确定清空本地的资料与所有媒体文件吗？此操作不可恢复。")) return;
-      await Profile.clearAll();
-      toast("已清空");
-      render();
+    $("#saveProfile").onclick = async () => { await Profile.save({ nickname: $("#nickname").value.trim(), gender: $("#gender").value, city: $("#city").value.trim() }); showToast('资料已保存'); };
+    $("#clearAll").onclick = async () => { if (!confirm('确认清空本地资料与本地媒体？（不会影响 Supabase）')) return; await Profile.clearAll(); showToast('已清空'); renderCurrent(); };
+
+    $("#supaToggle").onchange = (e) => {
+      $("#supaConfig").style.display = e.target.checked ? "block" : "none";
+      renderCurrent();
     };
 
     const drop = $("#drop");
     const fileInput = $("#fileInput");
-    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
-    drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
-    drop.addEventListener("drop", (e) => {
-      e.preventDefault();
-      drop.classList.remove("drag");
-      const files = e.dataTransfer.files;
-      handleFiles(files);
-    });
+    drop.addEventListener('dragover', (e)=>{ e.preventDefault(); drop.style.borderColor='#6aa8ff'; });
+    drop.addEventListener('dragleave', ()=>{ drop.style.borderColor='#34495e'; });
+    drop.addEventListener('drop', (e)=>{ e.preventDefault(); drop.style.borderColor='#34495e'; handleFiles(e.dataTransfer.files); });
     fileInput.onchange = (e) => handleFiles(fileInput.files);
 
-    searchEl.oninput = render;
-    typeFilterEl.onchange = render;
-    $("#cleanup").onclick = cleanupNow;
+    searchEl.oninput = renderCurrent; typeFilterEl.onchange = renderCurrent; $("#cleanup").onclick = async ()=> { if ($("#supaToggle").checked) await cleanupSupabaseNow(); else { const n = await Local.deleteExpired(); showToast('已清理 '+n+' 个过期文件（本地）'); renderCurrent(); } };
 
-    // 首次进入即清理一次已过期条目
-    await cleanupNow();
-    await render();
+    // regular cleanup for local (every 60s)
+    setInterval(async ()=>{ if (!$("#supaToggle").checked) { const n = await Local.deleteExpired(); if (n>0) { showToast('已自动清理 '+n+' 个过期文件（本地）'); renderCurrent(); } } }, 60*1000);
+
+    // initial render
+    renderCurrent();
   })();
   </script>
 </body>

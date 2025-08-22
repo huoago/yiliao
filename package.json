@@ -1,0 +1,13 @@
+{
+  "name": "lite-dating-supabase-cleanup",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cleanup job for Supabase media (delete expired files & metadata).",
+  "main": "cleanup.js",
+  "scripts": {
+    "cleanup": "node cleanup.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.26.0"
+  }
+}
